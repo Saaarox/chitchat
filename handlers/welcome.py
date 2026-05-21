@@ -8,6 +8,7 @@ from aiogram.enums import ChatMemberStatus
 from aiogram.enums import ChatType
 from aiogram.exceptions import TelegramForbiddenError
 from aiogram.filters import ChatMemberUpdatedFilter
+from aiogram.filters import Command
 from aiogram.filters import CommandStart
 from aiogram.filters.command import CommandObject
 from aiogram.types import CallbackQuery
