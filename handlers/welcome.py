@@ -1,3 +1,4 @@
+# handlers/welcome.py
 from __future__ import annotations
 
 import redis.asyncio as aioredis
@@ -13,8 +14,10 @@ from aiogram.filters import CommandStart
 from aiogram.filters.command import CommandObject
 from aiogram.types import CallbackQuery
 from aiogram.types import ChatMemberUpdated
+from aiogram.types import InlineKeyboardMarkup
 from aiogram.types import Message
 from aiogram.types import User
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from keyboards.captcha_kb import CaptchaAnswerCallback
 from keyboards.captcha_kb import build_captcha_keyboard
@@ -34,8 +37,40 @@ from database import AsyncSessionLocal
 from handlers.moderation import require_moderator
 from services.group_settings import ensure_group
 
-
 router = Router(name="welcome")
+
+BOT_USERNAME = "jekonoBot"  # Change to your bot's username
+GROUP_LINK = "https://t.me/+your_group_link"       # Change to your group link
+CHANNEL_LINK = "https://t.me/your_channel"         # Change to your channel link
+SUPPORT_LINK = "https://t.me/your_support"         # Change to your support link
+
+
+def build_start_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="➕ Add me to a Group ➕",
+        url=f"https://t.me/{BOT_USERNAME}?startgroup=true&admin=delete_messages+restrict_members+pin_messages+invite_users",
+    )
+    builder.button(
+        text="⚙️ Manage group Settings 🖊️",
+        url=f"https://t.me/{BOT_USERNAME}?startgroup=settings",
+    )
+    builder.button(text="👥 Group", url=GROUP_LINK)
+    builder.button(text="📢 Channel", url=CHANNEL_LINK)
+    builder.button(text="🆘 Support", url=SUPPORT_LINK)
+    builder.button(text="💬 Information", callback_data="start_info")
+    builder.button(text="🌐 Languages 🌐", callback_data="start_lang")
+    builder.adjust(1, 1, 2, 2, 1)
+    return builder.as_markup()
+
+
+START_TEXT = (
+    "👋 <b>Hello!</b>\n\n"
+    "<b>Jekono</b> is a powerful Bot to help you <b>manage your groups easily and safely!</b>\n\n"
+    "👉 <b>Add me to a Supergroup</b> and promote me as <b>Admin</b> to let me get in action!\n\n"
+    "🎯 <b>WHICH ARE THE COMMANDS?</b> 🎯\n"
+    "Press /help to see <b>all the commands</b> and how they work!"
+)
 
 
 def get_callback_message(callback: CallbackQuery) -> Message | None:
@@ -59,6 +94,47 @@ def build_pending_captcha(
     return pending, challenge
 
 
+@router.message(CommandStart(), F.chat.type == ChatType.PRIVATE)
+async def private_start(
+    message: Message,
+    redis: aioredis.Redis,
+) -> None:
+    # Check if user has a pending captcha first
+    pending = await find_pending_captcha_for_user(redis, message.from_user.id)
+    if pending is not None:
+        await message.answer(
+            build_captcha_prompt(pending),
+            reply_markup=build_captcha_keyboard(
+                chat_id=pending.chat_id,
+                user_id=pending.user_id,
+                options=pending.options,
+            ),
+        )
+        return
+
+    # Otherwise show the main start menu
+    await message.answer(
+        START_TEXT,
+        reply_markup=build_start_keyboard(),
+    )
+
+
+@router.callback_query(F.data == "start_info")
+async def start_info_callback(callback: CallbackQuery) -> None:
+    await callback.answer(
+        "Jekono is a group management bot with moderation, anti-spam, captcha, and more!",
+        show_alert=True,
+    )
+
+
+@router.callback_query(F.data == "start_lang")
+async def start_lang_callback(callback: CallbackQuery) -> None:
+    await callback.answer(
+        "Language selection coming soon!",
+        show_alert=True,
+    )
+
+
 @router.message(
     F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}),
     F.new_chat_members,
@@ -71,7 +147,6 @@ async def handle_new_members(
     if not message.new_chat_members:
         return
 
-    # Part 1: CAPTCHA
     for member in message.new_chat_members:
         if member.is_bot:
             continue
@@ -97,21 +172,15 @@ async def handle_new_members(
                 f"{member.full_name}, I couldn't send your captcha in private. "
                 "Start the bot in a private chat and send /start within 60 seconds or you will be removed."
             )
-    
-    # Part 2: Welcome Message (sent after captcha is solved, but for simplicity here we send it on join)
-    # A better implementation would be to send this from `solve_captcha`
+
     async with AsyncSessionLocal() as session:
         group = await ensure_group(session, message.chat.id, message.chat.title)
         welcome_text = group.settings.get("welcome_text")
         welcome_photo = group.settings.get("welcome_photo")
 
     if welcome_text:
-        # This part will run for the list of new members.
-        # We'll format for the first new member for simplicity.
         member = message.new_chat_members[0]
-        
         count = await bot.get_chat_member_count(message.chat.id)
-        
         formatted_text = welcome_text.format(
             name=member.full_name,
             username=f"@{member.username}" if member.username else member.full_name,
@@ -125,14 +194,14 @@ async def handle_new_members(
             try:
                 await bot.delete_message(message.chat.id, int(old_msg_id))
             except Exception:
-                pass # Ignore if message not found
+                pass
 
         if welcome_photo:
             sent_message = await bot.send_photo(message.chat.id, photo=welcome_photo, caption=formatted_text)
         else:
             sent_message = await bot.send_message(message.chat.id, text=formatted_text)
-        
-        await redis.set(last_welcome_key, sent_message.message_id, ex=86400) # 24h expiry
+
+        await redis.set(last_welcome_key, sent_message.message_id, ex=86400)
 
 
 @router.callback_query(CaptchaAnswerCallback.filter())
@@ -166,29 +235,9 @@ async def solve_captcha(
 
     message = get_callback_message(callback)
     if message is not None:
-        await message.edit_text("Captcha solved. You're now verified and can chat.")
+        await message.edit_text("✅ Captcha solved. You're now verified and can chat.")
 
     await callback.answer("Verification complete.")
-
-
-@router.message(CommandStart(), F.chat.type == ChatType.PRIVATE)
-async def private_captcha_start(
-    message: Message,
-    redis: aioredis.Redis,
-) -> None:
-    pending = await find_pending_captcha_for_user(redis, message.from_user.id)
-    if pending is None:
-        await message.answer("No active captcha challenge was found for your account.")
-        return
-
-    await message.answer(
-        build_captcha_prompt(pending),
-        reply_markup=build_captcha_keyboard(
-            chat_id=pending.chat_id,
-            user_id=pending.user_id,
-            options=pending.options,
-        ),
-    )
 
 
 @router.message(Command("setwelcome"), F.chat.type.in_({ChatType.GROUP, ChatType.SUPERGROUP}))
@@ -201,7 +250,7 @@ async def set_welcome_command(message: Message, command: CommandObject, bot: Bot
 
     if message.reply_to_message and message.reply_to_message.photo:
         photo_id = message.reply_to_message.photo[-1].file_id
-        if not text: # Allow setting welcome from reply caption
+        if not text:
             text = message.reply_to_message.caption
 
     async with AsyncSessionLocal() as session:
@@ -215,7 +264,7 @@ async def set_welcome_command(message: Message, command: CommandObject, bot: Bot
             settings["welcome_text"] = text
             if photo_id:
                 settings["welcome_photo"] = photo_id
-        
+
         group.settings = settings
         await session.commit()
 
@@ -237,7 +286,7 @@ async def set_goodbye_command(message: Message, command: CommandObject, bot: Bot
             settings["goodbye_text"] = None
         else:
             settings["goodbye_text"] = text
-        
+
         group.settings = settings
         await session.commit()
 
@@ -260,4 +309,4 @@ async def on_member_leave(event: ChatMemberUpdated, bot: Bot) -> None:
         try:
             await bot.send_message(event.chat.id, formatted_text)
         except Exception:
-            pass # Don't crash if we can't send for some reason
+            pass
