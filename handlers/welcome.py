@@ -39,10 +39,10 @@ from services.group_settings import ensure_group
 
 router = Router(name="welcome")
 
-BOT_USERNAME = "jekonoBot"  # Change to your bot's username
+BOT_USERNAME = "GurardGram"  # Change to your bot's username
 GROUP_LINK = "https://t.me/+your_group_link"       # Change to your group link
-CHANNEL_LINK = "https://t.me/your_channel"         # Change to your channel link
-SUPPORT_LINK = "https://t.me/your_support"         # Change to your support link
+CHANNEL_LINK = "https://t.me/+your_channel"         # Change to your channel link
+SUPPORT_LINK = "https://t.me/+your_support"         # Change to your support link
 
 
 def build_start_keyboard() -> InlineKeyboardMarkup:
@@ -65,11 +65,22 @@ def build_start_keyboard() -> InlineKeyboardMarkup:
 
 
 START_TEXT = (
-    "👋 <b>Hello!</b>\n\n"
-    "<b>Jekono</b> is a powerful Bot to help you <b>manage your groups easily and safely!</b>\n\n"
-    "👉 <b>Add me to a Supergroup</b> and promote me as <b>Admin</b> to let me get in action!\n\n"
-    "🎯 <b>WHICH ARE THE COMMANDS?</b> 🎯\n"
-    "Press /help to see <b>all the commands</b> and how they work!"
+    "👋 <b>Welcome to GuardGram!</b>\n\n"
+    
+    "<b>GuardGram</b> is a powerful premium moderation bot designed to help you "
+    "<b>manage, protect, and automate your Telegram groups safely and efficiently.</b>\n\n"
+    
+    "🛡️ Keep your community secure with advanced moderation tools, smart automation, "
+    "and professional group management features.\n\n"
+    
+    "👉 <b>Add me to your Supergroup</b> and promote me as <b>Admin</b> "
+    "to activate all protection and management features.\n\n"
+    
+    "🎯 <b>AVAILABLE COMMANDS</b> 🎯\n"
+    "Use /help to view <b>all commands</b> and learn how they work.\n\n"
+    
+    "💎 Want a <b>custom premium Telegram bot</b> like this for your own group or business?\n"
+    "Contact: @SH4D0WCTRLBot"
 )
 
 
