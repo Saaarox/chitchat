@@ -154,3 +154,33 @@ async def reload_command(message: Message, bot: Bot) -> None:
         await message.answer("Admin list refreshed from Telegram.")
     except Exception as e:
         await message.answer(f"Failed to refresh: {e}")
+
+
+@router.message(Command("help"))
+async def help_command(message: Message) -> None:
+    help_text = (
+        "<b>GuardBot Commands:</b>\n\n"
+        
+        "<b>Moderation</b>\n"
+        "  <code>/ban</code>, <code>/unban</code>, <code>/kick</code>, <code>/mute</code>, <code>/unmute</code>, <code>/tmute</code>, <code>/tban</code>, <code>/warn</code>, <code>/unwarn</code>, <code>/warns</code>, <code>/resetwarns</code>, <code>/del</code>, <code>/purge</code>, <code>/pin</code>, <code>/silentpin</code>, <code>/unpin</code>\n\n"
+        
+        "<b>Info</b>\n"
+        "  <code>/id</code>, <code>/info</code>, <code>/admins</code>, <code>/staff</code>, <code>/rules</code>, <code>/setrules</code>, <code>/reload</code>\n\n"
+        
+        "<b>Locks</b>\n"
+        "  <code>/lock</code>, <code>/unlock</code>, <code>/lockall</code>, <code>/locklist</code>\n\n"
+        
+        "<b>Settings</b>\n"
+        "  <code>/settings</code>\n\n"
+        
+        "<b>Welcome</b>\n"
+        "  <code>/setwelcome</code>, <code>/setgoodbye</code>\n\n"
+        
+        "<b>Admin</b>\n"
+        "  <code>/setlogchannel</code>, <code>/addrole</code>, <code>/removerole</code>, <code>/listroles</code>\n\n"
+        
+        "<b>Analytics</b>\n"
+        "  <code>/top10</code>, <code>/stat</code>, <code>/trend</code>, <code>/inactives</code>\n\n"
+        "For more details on a specific command, refer to the documentation or try the command with no arguments."
+    )
+    await message.answer(help_text, parse_mode="HTML"

@@ -123,28 +123,32 @@ async def protection_handler(message: Message, bot: Bot) -> None:
     text = message.text or message.caption or ""
 
     # 1. LINK PROTECTION
-    if locks.get("links") and URL_PATTERN.search(text):
-        await delete_and_warn("Link protection triggered.")
-        return
-
-    # 2. MEDIA LOCKS
-    for media_type, check_fn in MEDIA_TYPE_CHECKS.items():
-        if locks.get(media_type) and check_fn(message):
-            await silent_delete()
+    if group.settings.get("links"): # Check if link protection is enabled
+        if locks.get("links") and URL_PATTERN.search(text):
+            await delete_and_warn("Link protection triggered.")
             return
 
+    # 2. MEDIA LOCKS
+    if group.settings.get("media"): # Check if media locks are enabled
+        for media_type, check_fn in MEDIA_TYPE_CHECKS.items():
+            if locks.get(media_type) and check_fn(message):
+                await silent_delete()
+                return
+
     # 3. BANNED WORDS
-    if banned_words and text:
-        text_lower = text.lower()
-        for word in banned_words:
-            try:
-                if re.search(word, text_lower, re.IGNORECASE):
-                    await delete_and_warn("Banned word filter triggered.")
-                    return
-            except re.error:
-                if word.lower() in text_lower:
-                    await delete_and_warn("Banned word filter triggered.")
-                    return
+    if group.settings.get("anti_spam"): # Check if anti-spam (banned words) is enabled
+        if banned_words and text:
+            text_lower = text.lower()
+            for word in banned_words:
+                try:
+                    if re.search(word, text_lower, re.IGNORECASE):
+                        await delete_and_warn("Banned word filter triggered.")
+                        return
+                except re.error:
+                    # Fallback for simple string match if regex is invalid
+                    if word.lower() in text_lower:
+                        await delete_and_warn("Banned word filter triggered.")
+                        return
 
     # 4. MAX MESSAGE LENGTH
     if max_length and isinstance(max_length, int) and len(text) > max_length:
